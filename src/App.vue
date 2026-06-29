@@ -434,26 +434,60 @@ const clearAllData = () => {
   }
 };
 
-// CSV parsing & import logic
 const importCSV = () => {
-  if (!rawCSVInput.value.trim()) {
+  const text = rawCSVInput.value.trim();
+  if (!text) {
     alert("請先將 CSV 內容貼到輸入框中！");
     return;
   }
 
-  Papa.parse(rawCSVInput.value.trim(), {
+  Papa.parse(text, {
     header: true,
-    skipEmptyLines: true,
+    skipEmptyLines: 'greedy',
     complete: (results) => {
+      if (!results.data || results.data.length === 0) {
+        alert("匯入失敗：偵測不到任何資料列！請確保您貼上的內容除了第一列標題之外，還包含了下方的交易資料。");
+        return;
+      }
+
+      // Normalize keys by removing quotes, BOM and trimming
+      const normalizeKey = (key) => key.replace(/['"\ufeff]+/g, '').trim();
+      const firstRow = results.data[0];
+      const normalizedKeys = Object.keys(firstRow).map(normalizeKey);
+      
+      const requiredKeys = ['類型', '日期', '金額'];
+      const missingKeys = requiredKeys.filter(k => !normalizedKeys.includes(k));
+      
+      if (missingKeys.length > 0) {
+        alert(`匯入失敗：找不到必要的欄位：${missingKeys.join('、')}。\n\n目前偵測到的欄位有：${normalizedKeys.join(', ')}\n\n請確保您複製貼上時，第一列為欄位標題，且包含「類型」、「日期」、「金額」等欄位。`);
+        return;
+      }
+
       const parsed = results.data.map((row, idx) => {
-        const type = (row['類型'] || row['type'] || '支出').trim();
-        const rawDate = row['日期'] || row['date'] || new Date().toISOString().substring(0, 10);
-        const date = rawDate.split(' ')[0].trim();
-        const title = (row['標題'] || row['title'] || '未命名').trim();
-        const amount = parseFloat(row['金額'] || row['amount'] || 0);
-        const group = (row['類別群組名稱'] || row['group'] || '未分類').trim();
-        const category = (row['類別'] || row['category'] || '其他').trim();
-        const account = (row['帳戶'] || row['account'] || '現金').trim();
+        // Clean up row keys and values
+        const cleanRow = {};
+        Object.entries(row).forEach(([k, v]) => {
+          cleanRow[normalizeKey(k)] = v ? String(v).replace(/['"]+/g, '').trim() : '';
+        });
+
+        const type = cleanRow['類型'] || '支出';
+        const rawDate = cleanRow['日期'] || new Date().toISOString().substring(0, 10);
+        
+        // Convert "2026/6/29" or "2026/06/29" to "2026-06-29"
+        let date = rawDate.split(' ')[0].replace(/\//g, '-');
+        const parts = date.split('-');
+        if (parts.length === 3) {
+          const y = parts[0];
+          const m = parts[1].padStart(2, '0');
+          const d = parts[2].padStart(2, '0');
+          date = `${y}-${m}-${d}`;
+        }
+        
+        const title = cleanRow['標題'] || '未命名';
+        const amount = parseFloat(cleanRow['金額'] || 0);
+        const group = cleanRow['類別群組名稱'] || '未分類';
+        const category = cleanRow['類別'] || '其他';
+        const account = cleanRow['帳戶'] || '現金';
 
         return {
           id: `csv-${Date.now()}-${idx}`,
@@ -465,7 +499,7 @@ const importCSV = () => {
           category,
           account
         };
-      });
+      }).filter(item => item.title !== '未命名' || item.amount !== 0);
 
       if (parsed.length > 0) {
         transactions.value = parsed;
@@ -482,7 +516,7 @@ const importCSV = () => {
         rawCSVInput.value = '';
         showBudgetSettings.value = false;
       } else {
-        alert('無效的 CSV 內容，請檢查欄位。');
+        alert('匯入失敗：沒有解析出有效的交易資料。');
       }
     }
   });
