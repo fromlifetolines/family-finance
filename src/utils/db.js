@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_TRANSACTIONS = [
+  // 2026-06
   { id: '1', type: "支出", date: "2026-06-29", title: "馬祖食堂", amount: -170, group: "娛樂", category: "午餐", account: "錢包" },
   { id: '2', type: "支出", date: "2026-06-29", title: "7-11", amount: -84, group: "娛樂", category: "早餐", account: "國泰CUBE" },
   { id: '3', type: "支出", date: "2026-06-28", title: "診所", amount: -270, group: "家庭", category: "醫療", account: "錢包" },
@@ -17,7 +18,13 @@ const DEFAULT_TRANSACTIONS = [
   { id: '8', type: "支出", date: "2026-06-15", title: "Momo購物(夜用尿布/濕紙巾)", amount: -1250, group: "家庭", category: "育兒購物", account: "聯邦銀行" },
   { id: '9', type: "支出", date: "2026-06-12", title: "星巴克咖啡與甜點", amount: -350, group: "娛樂", category: "下午茶", account: "星展銀行" },
   { id: '10', type: "收入", date: "2026-06-05", title: "薪資入帳", amount: 46785, group: "固定收入", category: "薪資", account: "國泰Bank" },
-  { id: '11', type: "收入", date: "2026-06-05", title: "政府租屋補助", amount: 4000, group: "固定收入", category: "補助", account: "國泰Bank" }
+  { id: '11', type: "收入", date: "2026-06-05", title: "政府租屋補助", amount: 4000, group: "固定收入", category: "補助", account: "國泰Bank" },
+  
+  // 2025-06 (Historical Comparison data)
+  { id: '12', type: "支出", date: "2025-06-25", title: "房租固定開銷", amount: -30500, group: "固定支出", category: "房租", account: "彰化銀行" },
+  { id: '13', type: "支出", date: "2025-06-15", title: "育兒大型用品", amount: -1800, group: "家庭", category: "育兒購物", account: "聯邦銀行" },
+  { id: '14', type: "支出", date: "2025-06-10", title: "小聚餐聚會", amount: -650, group: "娛樂", category: "晚餐", account: "國泰CUBE" },
+  { id: '15', type: "收入", date: "2025-06-05", title: "薪資入帳", amount: 45000, group: "固定收入", category: "薪資", account: "國泰Bank" }
 ];
 
 const DEFAULT_ACCOUNTS = [
