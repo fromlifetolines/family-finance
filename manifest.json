@@ -1,0 +1,18 @@
+{
+  "name": "家庭財務透視 Dashboard",
+  "short_name": "家庭記帳",
+  "description": "幫助您和老婆隨時掌握每月收支，精確追蹤信用卡負債與預算進度。",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#4f46e5",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
