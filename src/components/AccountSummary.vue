@@ -44,7 +44,12 @@
           class="p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
         >
           <div class="flex justify-between items-center mb-1">
-            <span class="font-medium text-slate-700">{{ card.name }}</span>
+            <div>
+              <span class="font-medium text-slate-700">{{ card.name }}</span>
+              <span v-if="card.initialDebt" class="text-[9px] text-slate-400 block">
+                (含期初未結 $ {{ card.initialDebt.toLocaleString() }})
+              </span>
+            </div>
             <span class="font-mono text-sm font-semibold text-amber-600">
               $ {{ getCardDebt(card.name).toLocaleString() }}
             </span>
@@ -87,9 +92,14 @@ const totalBankSavings = computed(() => {
 });
 
 const getCardDebt = (cardName) => {
-  return props.transactions
+  const card = creditCards.value.find(c => c.name === cardName);
+  const initial = card ? (card.initialDebt || 0) : 0;
+  
+  const currentMonthTx = props.transactions
     .filter(t => t.type === '支出' && t.account === cardName)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    
+  return initial + currentMonthTx;
 };
 
 const totalCCDebt = computed(() => {

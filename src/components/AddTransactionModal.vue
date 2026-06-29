@@ -58,7 +58,7 @@
 
         <!-- Amount -->
         <div>
-          <label class="block text-xs font-semibold text-slate-500 mb-1">金額</label>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">金額 (單期 / 單筆)</label>
           <div class="relative">
             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-medium">NT$</span>
             <input 
@@ -107,6 +107,38 @@
           </select>
         </div>
 
+        <!-- Installment Option (Only for Expenses) -->
+        <div v-if="form.type === '支出'" class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-600">是否設定分期付款？</span>
+            <input 
+              v-model="form.isInstallment" 
+              type="checkbox" 
+              class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+            />
+          </div>
+          <div v-if="form.isInstallment" class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/50">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">分期期數</label>
+              <select 
+                v-model.number="form.installments" 
+                class="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none"
+              >
+                <option :value="3">3 期</option>
+                <option :value="6">6 期</option>
+                <option :value="12">12 期</option>
+                <option :value="24">24 期</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">每期試算</label>
+              <div class="text-xs font-mono font-bold text-rose-600 py-1.5">
+                $ {{ Math.round(form.amount).toLocaleString() }} / 月
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Submit Button -->
         <div class="pt-2 flex gap-3">
           <button 
@@ -136,7 +168,7 @@ const props = defineProps({
   accounts: Array
 });
 
-const emit = defineEmits(['close', 'add']);
+const emit = defineEmits(['close', 'add-multiple', 'add']);
 
 const getTodayDate = () => {
   const d = new Date();
@@ -152,7 +184,9 @@ const form = ref({
   amount: null,
   group: '娛樂',
   category: '午餐',
-  account: '國泰CUBE'
+  account: '國泰CUBE',
+  isInstallment: false,
+  installments: 3
 });
 
 const availableGroups = computed(() => {
@@ -183,6 +217,7 @@ const setType = (type) => {
     form.value.group = '固定收入';
     form.value.category = '薪資';
     form.value.account = '國泰Bank';
+    form.value.isInstallment = false;
   }
 };
 
@@ -194,19 +229,48 @@ watch(() => form.value.group, (newGroup) => {
 });
 
 const handleSubmit = () => {
-  const finalAmount = form.value.type === '支出' 
+  const baseAmount = form.value.type === '支出' 
     ? -Math.abs(form.value.amount) 
     : Math.abs(form.value.amount);
 
-  emit('add', {
-    ...form.value,
-    id: Date.now().toString(),
-    amount: finalAmount
-  });
+  if (form.value.type === '支出' && form.value.isInstallment) {
+    // Generate multiple monthly transactions
+    const list = [];
+    const baseDate = new Date(form.value.date);
+    
+    for (let i = 0; i < form.value.installments; i++) {
+      const targetDate = new Date(baseDate);
+      targetDate.setMonth(baseDate.getMonth() + i);
+      
+      // format YYYY-MM-DD
+      const y = targetDate.getFullYear();
+      const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+      const d = String(targetDate.getDate()).padStart(2, '0');
+      
+      list.push({
+        id: `inst-${Date.now()}-${i}`,
+        type: form.value.type,
+        date: `${y}-${m}-${d}`,
+        title: `${form.value.title} (分期 ${i+1}/${form.value.installments})`,
+        amount: baseAmount,
+        group: form.value.group,
+        category: form.value.category,
+        account: form.value.account
+      });
+    }
+    emit('add-multiple', list);
+  } else {
+    emit('add', {
+      ...form.value,
+      id: Date.now().toString(),
+      amount: baseAmount
+    });
+  }
   
   // Reset form
   form.value.title = '';
   form.value.amount = null;
   form.value.date = getTodayDate();
+  form.value.isInstallment = false;
 };
 </script>

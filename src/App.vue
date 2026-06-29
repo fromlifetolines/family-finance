@@ -14,7 +14,7 @@
           ⚙️ 預算、帳戶與 CSV 匯入
         </button>
         <span class="bg-indigo-900 text-[10px] px-2.5 py-1 rounded-full font-mono">
-          V3.0 歷史大數據版
+          V3.1 歷史大數據與分期版
         </span>
       </div>
     </nav>
@@ -30,17 +30,41 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <!-- Adjust Bank Balances -->
-          <div class="space-y-3">
-            <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">🏦 調整活存可用餘額</h4>
-            <div v-for="acc in accounts.filter(a => a.type === 'bank')" :key="acc.id" class="flex items-center gap-2">
-              <span class="text-xs text-slate-600 w-24">{{ acc.name }}</span>
-              <input 
-                v-model.number="acc.balance" 
-                type="number"
-                class="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                @change="saveToStorage"
-              />
+          <!-- Adjust Bank & CC Balances -->
+          <div class="space-y-4">
+            <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">🏦 調整活存餘額 & 信用卡期初負債</h4>
+            <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
+              <div v-for="acc in accounts.filter(a => a.type === 'bank')" :key="acc.id" class="flex items-center gap-2">
+                <span class="text-xs text-slate-600 w-24">{{ acc.name }} 存款</span>
+                <input 
+                  v-model.number="acc.balance" 
+                  type="number"
+                  class="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  @change="saveToStorage"
+                />
+              </div>
+              <div class="border-t border-slate-100 my-2 pt-2"></div>
+              <div v-for="card in accounts.filter(a => a.type === 'cc')" :key="card.id" class="space-y-1">
+                <div class="text-[10px] font-bold text-slate-500">{{ card.name }} 設定</div>
+                <div class="flex gap-2">
+                  <input 
+                    v-model.number="card.limit" 
+                    type="number"
+                    placeholder="額度"
+                    title="額度"
+                    class="w-1/2 px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold"
+                    @change="saveToStorage"
+                  />
+                  <input 
+                    v-model.number="card.initialDebt" 
+                    type="number"
+                    placeholder="期初未結金額"
+                    title="期初未結金額"
+                    class="w-1/2 px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold"
+                    @change="saveToStorage"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -58,12 +82,12 @@
             </div>
           </div>
 
-          <!-- CSV Paste Box -->
+          <!-- CSV Paste Box & Clean Slate -->
           <div class="space-y-3">
             <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">📋 匯入 CSV 歷史數據</h4>
             <textarea 
               v-model="rawCSVInput"
-              rows="3" 
+              rows="2" 
               placeholder='"類型","日期","標題","金額","類別群組名稱","類別","帳戶"...'
               class="w-full p-2 border border-slate-200 rounded-xl text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
             ></textarea>
@@ -72,13 +96,21 @@
                 @click="importCSV"
                 class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition"
               >
-                📥 解析並覆蓋匯入
+                📥 覆蓋匯入 CSV
               </button>
               <button 
                 @click="resetToDefault"
-                class="px-3 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-bold transition"
+                class="px-2 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold transition"
               >
-                重設預設資料
+                載入預設範例
+              </button>
+            </div>
+            <div class="border-t border-slate-100 pt-2">
+              <button 
+                @click="clearAllData"
+                class="w-full py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1"
+              >
+                🗑️ 清空所有數據 (全新登記)
               </button>
             </div>
           </div>
@@ -155,12 +187,14 @@
             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">📊 選擇分析主月份 (A 月)</label>
             <select v-model="monthA" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-semibold focus:ring-indigo-500 focus:border-indigo-500">
               <option v-for="m in uniqueMonths" :key="m" :value="m">{{ m }}</option>
+              <option v-if="!uniqueMonths.length" value="">尚未建立資料</option>
             </select>
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">🔍 選擇對比基準月 (B 月)</label>
             <select v-model="monthB" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-semibold focus:ring-indigo-500 focus:border-indigo-500">
               <option v-for="m in uniqueMonths" :key="m" :value="m">{{ m }}</option>
+              <option v-if="!uniqueMonths.length" value="">尚未建立資料</option>
             </select>
           </div>
           <div class="pt-6">
@@ -216,17 +250,17 @@
             <h3 class="text-lg font-bold text-blue-900">兩月份透支因子交叉比對報告</h3>
           </div>
           <div class="text-blue-950 text-sm leading-relaxed space-y-2">
-            <p><strong>1. 跨月同步對比現況：</strong> 您正在拿主分析月 <span class="font-bold text-indigo-700">[{{ monthA }}]</span> 與基準歷史月 <span class="font-bold text-slate-600">[{{ monthB }}]</span> 進行深度交叉診斷。</p>
+            <p><strong>1. 跨月同步對比現況：</strong> 您正在拿主分析月 <span class="font-bold text-indigo-700">[{{ monthA || '未選' }}]</span> 與基準歷史月 <span class="font-bold text-slate-600">[{{ monthB || '未選' }}]</span> 進行深度交叉診斷。</p>
             <p>
               <strong>2. 儲蓄能力與赤字擴大因子：</strong> 
-              [{{ monthA }}] 的結餘為 <span class="font-bold" :class="compA.balance >= 0 ? 'text-emerald-700' : 'text-rose-600'">$ {{ compA.balance.toLocaleString() }}</span>，
-              而 [{{ monthB }}] 為 <span class="font-bold" :class="compB.balance >= 0 ? 'text-emerald-700' : 'text-rose-600'">$ {{ compB.balance.toLocaleString() }}</span>。
+              [{{ monthA || '未選' }}] 的結餘為 <span class="font-bold" :class="compA.balance >= 0 ? 'text-emerald-700' : 'text-rose-600'">$ {{ compA.balance.toLocaleString() }}</span>，
+              而 [{{ monthB || '未選' }}] 為 <span class="font-bold" :class="compB.balance >= 0 ? 'text-emerald-700' : 'text-rose-600'">$ {{ compB.balance.toLocaleString() }}</span>。
               兩者相較，您的家庭淨儲蓄水位產生了 
               <span class="font-bold" :class="balanceDiff >= 0 ? 'text-emerald-700' : 'text-rose-600'">$ {{ balanceDiff.toLocaleString() }}</span> 的變動。
             </p>
             <p>
-              <strong>3. 揪出變動的核心魔鬼：</strong> 檢視大類別可以發現，[{{ monthA }}] 月份的 <strong>【娛樂】</strong> 群組開銷為 $ {{ (compA.groups["娛樂"] || 0).toLocaleString() }}，
-              而在 [{{ monthB }}] 月份則為 $ {{ (compB.groups["娛樂"] || 0).toLocaleString() }}。
+              <strong>3. 揪出變動的核心魔鬼：</strong> 檢視大類別可以發現，[{{ monthA || '未選' }}] 月份的 <strong>【娛樂】</strong> 群組開銷為 $ {{ (compA.groups["娛樂"] || 0).toLocaleString() }}，
+              而在 [{{ monthB || '未選' }}] 月份則為 $ {{ (compB.groups["娛樂"] || 0).toLocaleString() }}。
               娛樂消費{{ (compA.groups["娛樂"] || 0) - (compB.groups["娛樂"] || 0) >= 0 ? '增加了' : '減少了' }} 
               <span class="font-bold" :class="(compA.groups['娛樂'] || 0) - (compB.groups['娛樂'] || 0) >= 0 ? 'text-rose-600' : 'text-emerald-600'">
                 $ {{ Math.abs((compA.groups["娛樂"] || 0) - (compB.groups["娛樂"] || 0)).toLocaleString() }}
@@ -248,7 +282,7 @@
 
           <!-- Month A Waterfall Chart -->
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h3 class="font-bold text-slate-800 text-base mb-4">📊 當前主分析月 ({{ monthA }}月) 資金流向瀑布圖</h3>
+            <h3 class="font-bold text-slate-800 text-base mb-4">📊 當前主分析月 ({{ monthA || '未選' }}月) 資金流向瀑布圖</h3>
             <div class="relative h-80">
               <canvas ref="waterfallCanvasA"></canvas>
             </div>
@@ -257,7 +291,7 @@
 
         <!-- Month A credit cards share -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 class="font-bold text-slate-800 text-base mb-4">💳 4張信用卡與支付工具在 {{ monthA }} 月的使用權重對比</h3>
+          <h3 class="font-bold text-slate-800 text-base mb-4">💳 4張信用卡與支付工具在 {{ monthA || '未選' }} 月的使用權重對比</h3>
           <div class="relative h-64">
             <canvas ref="ccCanvasA"></canvas>
           </div>
@@ -283,6 +317,7 @@
       :accounts="accounts"
       @close="showAddModal = false" 
       @add="addTransaction" 
+      @add-multiple="addMultipleTransactions"
     />
   </div>
 </template>
@@ -314,7 +349,7 @@ const transactions = ref([]);
 const accounts = ref([]);
 const budgets = ref([]);
 
-const activeTab = ref('compare'); // Defaults to comparison tab as requested
+const activeTab = ref('compare');
 const showAddModal = ref(false);
 const showBudgetSettings = ref(false);
 
@@ -339,6 +374,13 @@ const loadData = () => {
   transactions.value = getTransactions();
   accounts.value = getAccounts();
   budgets.value = getBudgets();
+
+  // Make sure each credit card has initialDebt property
+  accounts.value.forEach(a => {
+    if (a.type === 'cc' && a.initialDebt === undefined) {
+      a.initialDebt = 0;
+    }
+  });
 
   // Populate month selectors
   const months = uniqueMonths.value;
@@ -366,6 +408,32 @@ const resetToDefault = () => {
   }
 };
 
+const clearAllData = () => {
+  if (confirm("⚠️ 注意！這會將所有記帳交易明細清空，並重設帳戶活存與卡費。確定要全新登記嗎？")) {
+    transactions.value = [];
+    accounts.value = [
+      { id: 'a1', name: "彰化銀行", type: "bank", balance: 0 },
+      { id: 'a2', name: "國泰Bank", type: "bank", balance: 0 },
+      { id: 'a3', name: "中國信託", type: "bank", balance: 0 },
+      { id: 'a4', name: "錢包", type: "bank", balance: 0 },
+      { id: 'c1', name: "國泰CUBE", type: "cc", limit: 100000, initialDebt: 0 },
+      { id: 'c2', name: "台新銀行", type: "cc", limit: 100000, initialDebt: 0 },
+      { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0 },
+      { id: 'c4', name: "星展銀行", type: "cc", limit: 100000, initialDebt: 0 }
+    ];
+    budgets.value = [
+      { group: "固定支出", limit: 30000 },
+      { group: "家庭", limit: 10000 },
+      { group: "娛樂", limit: 5000 }
+    ];
+    monthA.value = '';
+    monthB.value = '';
+    saveToStorage();
+    renderAllCharts();
+    alert("已清空數據，您可以點選右下角 ✍️ 開始全新登記，或到設定中輸入期初餘額與負債。");
+  }
+};
+
 // CSV parsing & import logic
 const importCSV = () => {
   if (!rawCSVInput.value.trim()) {
@@ -377,14 +445,9 @@ const importCSV = () => {
     header: true,
     skipEmptyLines: true,
     complete: (results) => {
-      if (results.errors.length) {
-        console.warn("CSV parsing warnings:", results.errors);
-      }
-
       const parsed = results.data.map((row, idx) => {
         const type = (row['類型'] || row['type'] || '支出').trim();
         const rawDate = row['日期'] || row['date'] || new Date().toISOString().substring(0, 10);
-        // Date might be "2026-06-29 12:11:29", trim it to just "2026-06-29"
         const date = rawDate.split(' ')[0].trim();
         const title = (row['標題'] || row['title'] || '未命名').trim();
         const amount = parseFloat(row['金額'] || row['amount'] || 0);
@@ -405,12 +468,10 @@ const importCSV = () => {
       });
 
       if (parsed.length > 0) {
-        // Overwrite existing transactions to perfectly sync historical paste
         transactions.value = parsed;
         saveToStorage();
         alert(`成功匯入 ${parsed.length} 筆歷史交易紀錄！`);
         
-        // Re-populate month selectors based on new data
         const months = uniqueMonths.value;
         if (months.length > 0) {
           monthA.value = months[0];
@@ -450,7 +511,10 @@ const netBalance = computed(() => {
 });
 
 const getCardDebt = (cardName) => {
-  return transactions.value
+  const card = accounts.value.find(c => c.name === cardName);
+  const initial = card ? (card.initialDebt || 0) : 0;
+  
+  return initial + transactions.value
     .filter(t => t.type === '支出' && t.account === cardName)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 };
@@ -459,6 +523,12 @@ const totalCCDebt = computed(() => {
   return accounts.value
     .filter(a => a.type === 'cc')
     .reduce((sum, card) => sum + getCardDebt(card.name), 0);
+});
+
+const totalBankSavings = computed(() => {
+  return accounts.value
+    .filter(a => a.type === 'bank')
+    .reduce((sum, acc) => sum + acc.balance, 0);
 });
 
 // Compare Calculations (A vs B)
@@ -490,6 +560,18 @@ const getMonthlyMetrics = (month) => {
       metrics.accounts[t.account] += absVal;
     }
   });
+
+  // Include credit card initial debts in comparison Month metrics for accounts
+  accounts.value.forEach(a => {
+    if (a.type === 'cc') {
+      const initial = a.initialDebt || 0;
+      if (initial > 0) {
+        if (!metrics.accounts[a.name]) metrics.accounts[a.name] = 0;
+        metrics.accounts[a.name] += initial;
+      }
+    }
+  });
+
   metrics.balance = metrics.income - metrics.expense;
   return metrics;
 };
@@ -497,6 +579,13 @@ const getMonthlyMetrics = (month) => {
 // Mutators
 const addTransaction = (t) => {
   transactions.value.unshift(t);
+  saveToStorage();
+  showAddModal.value = false;
+  renderAllCharts();
+};
+
+const addMultipleTransactions = (list) => {
+  transactions.value = [...list, ...transactions.value];
   saveToStorage();
   showAddModal.value = false;
   renderAllCharts();
@@ -541,10 +630,10 @@ const renderCompareBarChart = () => {
   compareBarChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: allGroups,
+      labels: allGroups.length ? allGroups : ['尚未建立分類'],
       datasets: [
-        { label: `${monthA.value} (主分析月)`, data: valsA, backgroundColor: 'rgba(79, 70, 229, 0.85)', borderRadius: 4 },
-        { label: `${monthB.value} (對比基準月)`, data: valsB, backgroundColor: 'rgba(148, 163, 184, 0.5)', borderRadius: 4 }
+        { label: `${monthA.value || '主分析月'} (A)`, data: valsA, backgroundColor: 'rgba(79, 70, 229, 0.85)', borderRadius: 4 },
+        { label: `${monthB.value || '對比基準月'} (B)`, data: valsB, backgroundColor: 'rgba(148, 163, 184, 0.5)', borderRadius: 4 }
       ]
     },
     options: {
