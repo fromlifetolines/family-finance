@@ -31,38 +31,67 @@
     <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
       <div class="flex justify-between items-center mb-4">
         <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
-          💳 信用卡未結款項
+          💳 信用卡應付帳單 & 繳款日
         </h3>
         <span class="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-md font-bold">
           總卡費: NT$ {{ totalCCDebt.toLocaleString() }}
         </span>
       </div>
-      <div class="space-y-3">
+      <div class="space-y-4">
         <div 
           v-for="card in creditCards" 
           :key="card.id"
-          class="p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
+          class="p-4 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all border border-slate-100/50 space-y-2"
         >
-          <div class="flex justify-between items-center mb-1">
+          <div class="flex justify-between items-start">
             <div>
-              <span class="font-medium text-slate-700">{{ card.name }}</span>
-              <span v-if="card.initialDebt" class="text-[9px] text-slate-400 block">
-                (含期初未結 $ {{ card.initialDebt.toLocaleString() }})
+              <span class="font-bold text-slate-700 text-sm block">{{ card.name }}</span>
+              <span class="text-[10px] text-slate-400 font-medium">
+                結帳日: 每月 {{ card.billingDay }} 號 ｜ 繳款日: {{ card.dueNextMonth ? '下月' : '當月' }} {{ card.dueDay }} 號
               </span>
             </div>
-            <span class="font-mono text-sm font-semibold text-amber-600">
-              $ {{ getCardDebt(card.name).toLocaleString() }}
-            </span>
+            <div class="text-right">
+              <span class="font-mono text-sm font-bold text-amber-600 block">
+                $ {{ getCardDebt(card.name).toLocaleString() }}
+              </span>
+              <span class="text-[9px] text-slate-400 font-medium">總累積未結</span>
+            </div>
           </div>
-          <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-            <div 
-              class="h-full bg-amber-500 transition-all duration-500" 
-              :style="{ width: `${Math.min(100, (getCardDebt(card.name) / card.limit) * 100)}%` }"
-            ></div>
+
+          <!-- Billing Info break down -->
+          <div class="grid grid-cols-2 gap-2 text-xs bg-white/60 p-2 rounded-lg border border-slate-200/30">
+            <div class="space-y-0.5">
+              <span class="text-[9px] text-slate-400 uppercase tracking-wider block">本期應繳帳單</span>
+              <span class="font-bold text-slate-700 font-mono">
+                $ {{ getBillingInfo(card).statementAmount.toLocaleString() }}
+              </span>
+              <span class="text-[8px] text-slate-400 block">
+                ({{ getBillingInfo(card).period }})
+              </span>
+            </div>
+            <div class="space-y-0.5 text-right border-l border-slate-150 pl-2">
+              <span class="text-[9px] text-slate-400 uppercase tracking-wider block">繳款截止日</span>
+              <span class="font-bold text-rose-500 font-mono block">
+                {{ getBillingInfo(card).dueDate }}
+              </span>
+              <span class="text-[9px] text-slate-500 block">
+                未出帳: $ {{ getBillingInfo(card).unbilledAmount.toLocaleString() }}
+              </span>
+            </div>
           </div>
-          <div class="flex justify-between text-[10px] text-slate-400 mt-1">
-            <span>額度 $ {{ card.limit.toLocaleString() }}</span>
-            <span>可用 $ {{ (card.limit - getCardDebt(card.name)).toLocaleString() }}</span>
+
+          <!-- Limit usage bar -->
+          <div class="space-y-1">
+            <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+              <div 
+                class="h-full bg-amber-500 transition-all duration-500" 
+                :style="{ width: `${Math.min(100, (getCardDebt(card.name) / card.limit) * 100)}%` }"
+              ></div>
+            </div>
+            <div class="flex justify-between text-[9px] text-slate-400">
+              <span>可用額度 $ {{ (card.limit - getCardDebt(card.name)).toLocaleString() }}</span>
+              <span>總額度 $ {{ card.limit.toLocaleString() }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -81,6 +110,10 @@ const props = defineProps({
   transactions: {
     type: Array,
     required: true
+  },
+  activeMonth: {
+    type: String,
+    default: ''
   }
 });
 
@@ -105,4 +138,79 @@ const getCardDebt = (cardName) => {
 const totalCCDebt = computed(() => {
   return creditCards.value.reduce((sum, card) => sum + getCardDebt(card.name), 0);
 });
+
+const getBillingInfo = (card) => {
+  const fallback = { period: '—', dueDate: '—', statementAmount: 0, unbilledAmount: 0 };
+  if (!card.billingDay) return fallback;
+
+  // Use the active month (e.g. "2026-06") or default to today's month
+  const targetMonthStr = props.activeMonth || new Date().toISOString().substring(0, 7);
+  const [yearStr, monthStr] = targetMonthStr.split('-');
+  const year = parseInt(yearStr || new Date().getFullYear());
+  const month = parseInt(monthStr || (new Date().getMonth() + 1));
+
+  // Billing statement date: Year-Month-billingDay
+  const billDate = new Date(year, month - 1, card.billingDay);
+  
+  // Start date: Previous month's billingDay + 1 day
+  const startDate = new Date(year, month - 2, card.billingDay + 1);
+  
+  // Due Date:
+  let dueYear = year;
+  let dueMonth = month;
+  if (card.dueNextMonth) {
+    dueMonth += 1;
+    if (dueMonth > 12) {
+      dueMonth = 1;
+      dueYear += 1;
+    }
+  }
+  const dueDate = new Date(dueYear, dueMonth - 1, card.dueDay);
+
+  const formatDateShort = (d) => {
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const formatDateFull = (d) => {
+    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // Sum transactions falling strictly inside: [startDate, billDate]
+  const statementTxSum = props.transactions
+    .filter(t => {
+      if (t.type !== '支出' || t.account !== card.name) return false;
+      const tDate = new Date(t.date);
+      tDate.setHours(0,0,0,0);
+      
+      const start = new Date(startDate);
+      start.setHours(0,0,0,0);
+      
+      const end = new Date(billDate);
+      end.setHours(23,59,59,999);
+      
+      return tDate >= start && tDate <= end;
+    })
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  // Sum transactions made strictly AFTER billDate
+  const unbilledTxSum = props.transactions
+    .filter(t => {
+      if (t.type !== '支出' || t.account !== card.name) return false;
+      const tDate = new Date(t.date);
+      tDate.setHours(0,0,0,0);
+      
+      const endOfBill = new Date(billDate);
+      endOfBill.setHours(23,59,59,999);
+      
+      return tDate > endOfBill;
+    })
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  return {
+    period: `${formatDateShort(startDate)} ~ ${formatDateShort(billDate)}`,
+    dueDate: formatDateFull(dueDate),
+    statementAmount: (card.initialDebt || 0) + statementTxSum,
+    unbilledAmount: unbilledTxSum
+  };
+};
 </script>

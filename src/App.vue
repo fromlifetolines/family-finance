@@ -201,7 +201,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div class="lg:col-span-2">
-            <AccountSummary :accounts="accounts" :transactions="transactions" />
+            <AccountSummary :accounts="accounts" :transactions="transactions" :active-month="monthA" />
           </div>
           <div>
             <BudgetProgress :budgets="budgets" :transactions="transactions" />
