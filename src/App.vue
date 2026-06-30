@@ -730,28 +730,12 @@ const netBalance = computed(() => {
 
 const getBankAccountBalance = (accName) => {
   const acc = accounts.value.find(a => a.name === accName);
-  const initial = acc ? (acc.balance || 0) : 0;
-  
-  // Sum manual (non-CSV) transactions added after settings setup
-  const manualTxs = transactions.value.filter(t => t.account === accName && !t.id.startsWith('csv-'));
-  const income = manualTxs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const expenses = manualTxs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const transfers = manualTxs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
-
-  return initial + income - expenses + transfers;
+  return acc ? (acc.balance || 0) : 0;
 };
 
 const getCardDebt = (cardName) => {
   const card = accounts.value.find(c => c.name === cardName);
-  const initial = card ? Math.abs(card.initialDebt || 0) : 0;
-  
-  // Sum manual (non-CSV) transactions added after settings setup
-  const manualTxs = transactions.value.filter(t => t.account === cardName && !t.id.startsWith('csv-'));
-  const expenses = manualTxs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const income = manualTxs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const transfers = manualTxs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
-
-  return initial + expenses - income - transfers;
+  return card ? Math.abs(card.initialDebt || 0) : 0;
 };
 
 const totalCCDebt = computed(() => {
@@ -839,16 +823,39 @@ const ensureBudgetGroupExists = (group, type) => {
   }
 };
 
+const adjustAccountBalance = (accountName, amountDiff) => {
+  const acc = accounts.value.find(a => a.name === accountName);
+  if (!acc) return;
+  if (acc.type === 'bank') {
+    acc.balance = (acc.balance || 0) + amountDiff;
+  } else if (acc.type === 'cc') {
+    // In cc accounts, initialDebt is stored as a positive absolute value.
+    // Outflow/Expense (negative amountDiff) increases debt, Inflow/Payment (positive amountDiff) reduces debt.
+    acc.initialDebt = Math.max(0, (acc.initialDebt || 0) - amountDiff);
+  }
+  saveToStorage();
+};
+
 const addTransaction = (t) => {
   ensureBudgetGroupExists(t.group, t.type);
   transactions.value.unshift(t);
-  saveToStorage();
+  // Only adjust current settings balance if the transaction is manual (not from CSV import)
+  if (!t.id.startsWith('csv-')) {
+    adjustAccountBalance(t.account, t.amount);
+  } else {
+    saveToStorage();
+  }
   closeAddModal();
   renderAllCharts();
 };
 
 const addMultipleTransactions = (list) => {
-  list.forEach(t => ensureBudgetGroupExists(t.group, t.type));
+  list.forEach(t => {
+    ensureBudgetGroupExists(t.group, t.type);
+    if (!t.id.startsWith('csv-')) {
+      adjustAccountBalance(t.account, t.amount);
+    }
+  });
   transactions.value = [...list, ...transactions.value];
   saveToStorage();
   closeAddModal();
@@ -859,6 +866,15 @@ const updateTransaction = (updatedTx) => {
   ensureBudgetGroupExists(updatedTx.group, updatedTx.type);
   const idx = transactions.value.findIndex(t => t.id === updatedTx.id);
   if (idx !== -1) {
+    const oldTx = transactions.value[idx];
+    // Revert old transaction's impact on settings balance if manual
+    if (!oldTx.id.startsWith('csv-')) {
+      adjustAccountBalance(oldTx.account, -oldTx.amount);
+    }
+    // Apply new transaction's impact on settings balance if manual
+    if (!updatedTx.id.startsWith('csv-')) {
+      adjustAccountBalance(updatedTx.account, updatedTx.amount);
+    }
     transactions.value[idx] = updatedTx;
     saveToStorage();
   }
@@ -867,6 +883,10 @@ const updateTransaction = (updatedTx) => {
 };
 
 const deleteTransaction = (id) => {
+  const tx = transactions.value.find(t => t.id === id);
+  if (tx && !tx.id.startsWith('csv-')) {
+    adjustAccountBalance(tx.account, -tx.amount);
+  }
   transactions.value = transactions.value.filter(t => t.id !== id);
   saveToStorage();
   renderAllCharts();
