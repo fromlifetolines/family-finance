@@ -128,8 +128,10 @@ const getCardDebt = (cardName) => {
   const card = creditCards.value.find(c => c.name === cardName);
   const initial = card ? (card.initialDebt || 0) : 0;
   
+  if (!props.activeMonth) return initial;
+
   const currentMonthTx = props.transactions
-    .filter(t => t.type === '支出' && t.account === cardName)
+    .filter(t => t.type === '支出' && t.account === cardName && t.date.startsWith(props.activeMonth))
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     
   return initial + currentMonthTx;
@@ -209,7 +211,7 @@ const getBillingInfo = (card) => {
   return {
     period: `${formatDateShort(startDate)} ~ ${formatDateShort(billDate)}`,
     dueDate: formatDateFull(dueDate),
-    statementAmount: (card.initialDebt || 0) + statementTxSum,
+    statementAmount: statementTxSum, // Only sum statement transactions, exclude initial debt
     unbilledAmount: unbilledTxSum
   };
 };
