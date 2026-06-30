@@ -83,24 +83,52 @@
         </div>
 
         <!-- Group & Category -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">類別群組</label>
-            <select 
-              v-model="form.group" 
-              class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              <option v-for="g in availableGroups" :key="g" :value="g">{{ g }}</option>
-            </select>
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">類別群組</label>
+              <select 
+                v-model="form.group" 
+                class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              >
+                <option v-for="g in availableGroups" :key="g" :value="g">{{ g }}</option>
+                <option value="__NEW_GROUP__">➕ 新增自訂群組...</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">細項類別</label>
+              <select 
+                v-model="form.category" 
+                class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              >
+                <option v-for="c in subCategories" :key="c" :value="c">{{ c }}</option>
+                <option value="__NEW_CAT__">➕ 新增自訂細項...</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 mb-1">細項類別</label>
-            <select 
-              v-model="form.category" 
-              class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              <option v-for="c in subCategories" :key="c" :value="c">{{ c }}</option>
-            </select>
+
+          <!-- Custom group input field -->
+          <div v-if="form.group === '__NEW_GROUP__'">
+            <label class="block text-[10px] font-bold text-indigo-600 mb-1">請輸入全新自訂群組名稱</label>
+            <input 
+              v-model="customGroupInput" 
+              type="text" 
+              placeholder="例如: 機車、汽車"
+              required
+              class="w-full px-3 py-2 border border-indigo-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50/10 font-semibold"
+            />
+          </div>
+
+          <!-- Custom category input field -->
+          <div v-if="form.category === '__NEW_CAT__'">
+            <label class="block text-[10px] font-bold text-indigo-600 mb-1">請輸入全新自訂細項名稱</label>
+            <input 
+              v-model="customCategoryInput" 
+              type="text" 
+              placeholder="例如: 機車加油、停車費"
+              required
+              class="w-full px-3 py-2 border border-indigo-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-indigo-50/10 font-semibold"
+            />
           </div>
         </div>
 
@@ -313,14 +341,31 @@ const setType = (type) => {
   }
 };
 
+const customGroupInput = ref('');
+const customCategoryInput = ref('');
+
 watch(() => form.value.group, (newGroup) => {
-  const list = subCategoriesMap[newGroup] || [];
+  if (newGroup === '__NEW_GROUP__') {
+    form.value.category = '__NEW_CAT__';
+    return;
+  }
+  const list = computedSubCategoriesMap.value[newGroup] || [];
   if (list.length && !list.includes(form.value.category)) {
     form.value.category = list[0];
   }
 });
 
 const handleSubmit = () => {
+  let finalGroup = form.value.group;
+  let finalCategory = form.value.category;
+
+  if (form.value.group === '__NEW_GROUP__') {
+    finalGroup = customGroupInput.value.trim() || '其他';
+  }
+  if (form.value.category === '__NEW_CAT__') {
+    finalCategory = customCategoryInput.value.trim() || '其他';
+  }
+
   const baseAmount = form.value.type === '支出' 
     ? -Math.abs(form.value.amount) 
     : Math.abs(form.value.amount);
@@ -331,8 +376,8 @@ const handleSubmit = () => {
       date: form.value.date,
       title: form.value.title,
       amount: baseAmount,
-      group: form.value.group,
-      category: form.value.category,
+      group: finalGroup,
+      category: finalCategory,
       account: form.value.account,
       remark: form.value.remark
     });
@@ -355,8 +400,8 @@ const handleSubmit = () => {
           date: `${y}-${m}-${d}`,
           title: `${form.value.title} (分期 ${i+1}/${form.value.installments})`,
           amount: baseAmount,
-          group: form.value.group,
-          category: form.value.category,
+          group: finalGroup,
+          category: finalCategory,
           account: form.value.account,
           remark: form.value.remark || `分期付款 第 ${i+1} 期 / 共 ${form.value.installments} 期`
         });
@@ -366,7 +411,9 @@ const handleSubmit = () => {
       emit('add', {
         ...form.value,
         id: Date.now().toString(),
-        amount: baseAmount
+        amount: baseAmount,
+        group: finalGroup,
+        category: finalCategory
       });
     }
   }
@@ -377,5 +424,7 @@ const handleSubmit = () => {
   form.value.date = getTodayDate();
   form.value.remark = '';
   form.value.isInstallment = false;
+  customGroupInput.value = '';
+  customCategoryInput.value = '';
 };
 </script>

@@ -802,7 +802,14 @@ const closeAddModal = () => {
   showAddModal.value = false;
 };
 
+const ensureBudgetGroupExists = (group, type) => {
+  if (type === '支出' && group && !budgets.value.some(b => b.group === group)) {
+    budgets.value.push({ group, limit: 10000 });
+  }
+};
+
 const addTransaction = (t) => {
+  ensureBudgetGroupExists(t.group, t.type);
   transactions.value.unshift(t);
   saveToStorage();
   closeAddModal();
@@ -810,6 +817,7 @@ const addTransaction = (t) => {
 };
 
 const addMultipleTransactions = (list) => {
+  list.forEach(t => ensureBudgetGroupExists(t.group, t.type));
   transactions.value = [...list, ...transactions.value];
   saveToStorage();
   closeAddModal();
@@ -817,6 +825,7 @@ const addMultipleTransactions = (list) => {
 };
 
 const updateTransaction = (updatedTx) => {
+  ensureBudgetGroupExists(updatedTx.group, updatedTx.type);
   const idx = transactions.value.findIndex(t => t.id === updatedTx.id);
   if (idx !== -1) {
     transactions.value[idx] = updatedTx;
