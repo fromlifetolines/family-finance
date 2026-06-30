@@ -80,17 +80,46 @@
             </div>
           </div>
 
-          <!-- Adjust Budgets -->
-          <div class="space-y-3">
-            <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">🎯 調整類別預算上限</h4>
-            <div v-for="b in budgets" :key="b.group" class="flex items-center gap-2">
-              <span class="text-xs text-slate-600 w-24">{{ b.group }}</span>
-              <input 
-                v-model.number="b.limit" 
-                type="number"
-                class="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                @change="saveToStorage"
-              />
+          <!-- Adjust Budgets & Categories -->
+          <div class="space-y-4">
+            <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">🎯 類別群組與預算上限</h4>
+            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+              <div v-for="(b, idx) in budgets" :key="b.group" class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                <span class="text-xs text-slate-700 font-bold w-20 truncate" :title="b.group">{{ b.group }}</span>
+                <input 
+                  v-model.number="b.limit" 
+                  type="number"
+                  placeholder="限額"
+                  class="flex-1 px-2 py-1 border border-slate-200 rounded text-[11px] font-semibold bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  @change="saveToStorage"
+                />
+                <button 
+                  @click="deleteCategoryGroup(idx)"
+                  class="text-rose-500 hover:text-rose-700 text-xs px-1"
+                  title="刪除此群組"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <!-- Add New Group Form -->
+            <div class="border-t border-slate-100 pt-3 space-y-2">
+              <div class="text-[10px] font-bold text-slate-400">➕ 新增自訂類別群組</div>
+              <div class="flex gap-1.5">
+                <input 
+                  v-model="newGroupName"
+                  type="text"
+                  placeholder="群組名 (例: 機車)"
+                  class="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50/50"
+                />
+                <button 
+                  @click="addCategoryGroup"
+                  class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition"
+                >
+                  新增
+                </button>
+              </div>
             </div>
           </div>
 
@@ -385,6 +414,8 @@
     <AddTransactionModal 
       :is-open="showAddModal" 
       :accounts="accounts"
+      :budgets="budgets"
+      :all-transactions="transactions"
       :editing-transaction="selectedTransactionForEdit"
       @close="closeAddModal" 
       @add="addTransaction" 
@@ -427,6 +458,26 @@ const showBudgetSettings = ref(false);
 
 const selectedTransactionForEdit = ref(null);
 const rawCSVInput = ref('');
+const newGroupName = ref('');
+
+const addCategoryGroup = () => {
+  const name = newGroupName.value.trim();
+  if (!name) return;
+  if (budgets.value.some(b => b.group === name)) {
+    alert("該類別群組已存在！");
+    return;
+  }
+  budgets.value.push({ group: name, limit: 10000 });
+  saveToStorage();
+  newGroupName.value = '';
+};
+
+const deleteCategoryGroup = (index) => {
+  if (confirm(`確定要刪除「${budgets.value[index].group}」類別群組嗎？(此群組的舊交易仍會被保留，但不會再列入預算上限統計)`)) {
+    budgets.value.splice(index, 1);
+    saveToStorage();
+  }
+};
 
 // Month selector values
 const monthA = ref('');

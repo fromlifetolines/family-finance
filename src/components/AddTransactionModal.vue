@@ -187,6 +187,14 @@ import { ref, watch, computed } from 'vue';
 const props = defineProps({
   isOpen: Boolean,
   accounts: Array,
+  budgets: {
+    type: Array,
+    default: () => []
+  },
+  allTransactions: {
+    type: Array,
+    default: () => []
+  },
   editingTransaction: {
     type: Object,
     default: null
@@ -250,21 +258,45 @@ watch(() => props.editingTransaction, (newTx) => {
 }, { immediate: true });
 
 const availableGroups = computed(() => {
-  return form.value.type === '支出' 
-    ? ['娛樂', '家庭', '固定支出'] 
-    : ['固定收入', '變動收入'];
+  if (form.value.type === '支出') {
+    const budgetGroups = props.budgets.map(b => b.group);
+    const defaults = ['娛樂', '家庭', '固定支出', '其他', '公用事業', '機車', '汽車'];
+    return [...new Set([...budgetGroups, ...defaults])];
+  } else {
+    return ['固定收入', '變動收入'];
+  }
 });
 
-const subCategoriesMap = {
-  '娛樂': ['午餐', '晚餐', '早餐', '下午茶', '飲料', '奢侈品', '娛樂活動'],
-  '家庭': ['育兒購物', '醫療', '生活用品', '雜支'],
-  '固定支出': ['房租', '管理費', '水電瓦斯', '保險費', '信用卡費'],
-  '固定收入': ['薪資', '獎金', '補助'],
-  '變動收入': ['投資收益', '二手拍賣', '其他收入']
-};
+const computedSubCategoriesMap = computed(() => {
+  const map = {
+    '娛樂': ['午餐', '晚餐', '早餐', '下午茶', '飲料', '奢侈品', '娛樂活動', 'GYM', 'KTV', '外出用餐', '宵夜', '甜點', '購物', '電影'],
+    '家庭': ['育兒購物', '醫療', '生活用品', '雜支', 'Ubereats會員', '學校', '年度保險', '悠遊卡加值', '房租', '水費', '瓦斯費', '社區網路', '網路費', '老婆', '衣物', '雜貨', '電費', '電話費'],
+    '固定支出': ['房租', '管理費', '水電瓦斯', '保險費', '信用卡費'],
+    '其他': ['其他', '剪頭髮', '軟體', '雲端'],
+    '公用事業': ['電話費'],
+    '機車': ['機車保養', '機車加油'],
+    '汽車': ['ETC', '保養', '停車費', '汽油', '洗車', '車險'],
+    '固定收入': ['薪資', '獎金', '補助'],
+    '變動收入': ['投資收益', '二手拍賣', '其他收入']
+  };
+
+  // Add categories learned from transaction history
+  props.allTransactions.forEach(t => {
+    if (t.group && t.category) {
+      if (!map[t.group]) {
+        map[t.group] = [];
+      }
+      if (!map[t.group].includes(t.category)) {
+        map[t.group].push(t.category);
+      }
+    }
+  });
+
+  return map;
+});
 
 const subCategories = computed(() => {
-  return subCategoriesMap[form.value.group] || [];
+  return computedSubCategoriesMap.value[form.value.group] || ['其他'];
 });
 
 const setType = (type) => {
