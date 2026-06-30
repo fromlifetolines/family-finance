@@ -32,10 +32,10 @@ const DEFAULT_ACCOUNTS = [
   { id: 'a2', name: "國泰Bank", type: "bank", balance: 52000 },
   { id: 'a3', name: "中國信託", type: "bank", balance: 8000 },
   { id: 'a4', name: "錢包", type: "bank", balance: 2000 },
-  { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 0, billingDay: 21, dueDay: 5, dueNextMonth: true },
-  { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 0, billingDay: 7, dueDay: 22, dueNextMonth: false },
-  { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0, billingDay: 9, dueDay: 24, dueNextMonth: false },
-  { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 0, billingDay: 14, dueDay: 2, dueNextMonth: true }
+  { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 68658, statementBill: 47736, billingDay: 21, dueDay: 5, dueNextMonth: true },
+  { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 8580, statementBill: 7151, billingDay: 7, dueDay: 22, dueNextMonth: false },
+  { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 1908, statementBill: 4251, billingDay: 9, dueDay: 24, dueNextMonth: false },
+  { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 2544, statementBill: 2844, billingDay: 14, dueDay: 2, dueNextMonth: true }
 ];
 
 const DEFAULT_BUDGETS = [

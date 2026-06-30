@@ -44,25 +44,37 @@
                 />
               </div>
               <div class="border-t border-slate-100 my-2 pt-2"></div>
-              <div v-for="card in accounts.filter(a => a.type === 'cc')" :key="card.id" class="space-y-1">
-                <div class="text-[10px] font-bold text-slate-500">{{ card.name }} 設定</div>
-                <div class="flex gap-2">
-                  <input 
-                    v-model.number="card.limit" 
-                    type="number"
-                    placeholder="額度"
-                    title="額度"
-                    class="w-1/2 px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold"
-                    @change="saveToStorage"
-                  />
-                  <input 
-                    v-model.number="card.initialDebt" 
-                    type="number"
-                    placeholder="期初未結金額"
-                    title="期初未結金額"
-                    class="w-1/2 px-2 py-1 border border-slate-200 rounded-lg text-xs font-semibold"
-                    @change="saveToStorage"
-                  />
+              <div v-for="card in accounts.filter(a => a.type === 'cc')" :key="card.id" class="bg-slate-50 p-2 rounded-xl border border-slate-100/50 space-y-1">
+                <div class="text-[10px] font-bold text-slate-700">{{ card.name }} 設定</div>
+                <div class="grid grid-cols-3 gap-1">
+                  <div>
+                    <span class="text-[8px] text-slate-450 block">信用額度</span>
+                    <input 
+                      v-model.number="card.limit" 
+                      type="number"
+                      class="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[10px] font-semibold"
+                      @change="saveToStorage"
+                    />
+                  </div>
+                  <div>
+                    <span class="text-[8px] text-slate-450 block">未結餘額</span>
+                    <input 
+                      v-model.number="card.initialDebt" 
+                      type="number"
+                      class="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[10px] font-semibold"
+                      @change="saveToStorage"
+                    />
+                  </div>
+                  <div>
+                    <span class="text-[8px] text-slate-450 block">本期帳單</span>
+                    <input 
+                      v-model.number="card.statementBill" 
+                      type="number"
+                      placeholder="手動輸入"
+                      class="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[10px] font-semibold focus:border-indigo-500"
+                      @change="saveToStorage"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -436,10 +448,10 @@ const loadData = () => {
   
   const loadedAccounts = getAccounts();
   const DEFAULT_ACCOUNTS = [
-    { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 0, billingDay: 21, dueDay: 5, dueNextMonth: true },
-    { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 0, billingDay: 7, dueDay: 22, dueNextMonth: false },
-    { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0, billingDay: 9, dueDay: 24, dueNextMonth: false },
-    { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 0, billingDay: 14, dueDay: 2, dueNextMonth: true }
+    { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 68658, statementBill: 47736, billingDay: 21, dueDay: 5, dueNextMonth: true },
+    { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 8580, statementBill: 7151, billingDay: 7, dueDay: 22, dueNextMonth: false },
+    { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 1908, statementBill: 4251, billingDay: 9, dueDay: 24, dueNextMonth: false },
+    { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 2544, statementBill: 2844, billingDay: 14, dueDay: 2, dueNextMonth: true }
   ];
   
   accounts.value = loadedAccounts.map(la => {
@@ -450,7 +462,8 @@ const loadData = () => {
         ...def,
         balance: la.balance !== undefined ? la.balance : def.balance,
         limit: la.limit !== undefined ? la.limit : def.limit,
-        initialDebt: la.initialDebt !== undefined ? la.initialDebt : (def.initialDebt || 0)
+        initialDebt: la.initialDebt !== undefined ? la.initialDebt : (def.initialDebt || 0),
+        statementBill: la.statementBill !== undefined ? la.statementBill : (def.statementBill || 0)
       };
     }
     return la;
@@ -499,10 +512,10 @@ const clearAllData = () => {
       { id: 'a2', name: "國泰Bank", type: "bank", balance: 0 },
       { id: 'a3', name: "中國信託", type: "bank", balance: 0 },
       { id: 'a4', name: "錢包", type: "bank", balance: 0 },
-      { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 0, billingDay: 21, dueDay: 5, dueNextMonth: true },
-      { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 0, billingDay: 7, dueDay: 22, dueNextMonth: false },
-      { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0, billingDay: 9, dueDay: 24, dueNextMonth: false },
-      { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 0, billingDay: 14, dueDay: 2, dueNextMonth: true }
+      { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 0, statementBill: 0, billingDay: 21, dueDay: 5, dueNextMonth: true },
+      { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 0, statementBill: 0, billingDay: 7, dueDay: 22, dueNextMonth: false },
+      { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0, statementBill: 0, billingDay: 9, dueDay: 24, dueNextMonth: false },
+      { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 0, statementBill: 0, billingDay: 14, dueDay: 2, dueNextMonth: true }
     ];
     budgets.value = [
       { group: "固定支出", limit: 30000 },

@@ -241,7 +241,7 @@ const getBillingInfo = (card) => {
   return {
     period: `${formatDateShort(startDate)} ~ ${formatDateShort(billDate)}`,
     dueDate: formatDateFull(dueDate),
-    statementAmount: statementAmount, 
+    statementAmount: card.statementBill !== undefined && card.statementBill > 0 ? card.statementBill : statementAmount, 
     unbilledAmount: unbilledTxSum,
     txs: statementTxs,
     txCount: statementTxs.length
