@@ -433,7 +433,29 @@ let ccChartInstanceA = null;
 // Initialize data
 const loadData = () => {
   transactions.value = getTransactions();
-  accounts.value = getAccounts();
+  
+  const loadedAccounts = getAccounts();
+  const DEFAULT_ACCOUNTS = [
+    { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 0, billingDay: 21, dueDay: 5, dueNextMonth: true },
+    { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 0, billingDay: 7, dueDay: 22, dueNextMonth: false },
+    { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0, billingDay: 9, dueDay: 24, dueNextMonth: false },
+    { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 0, billingDay: 14, dueDay: 2, dueNextMonth: true }
+  ];
+  
+  accounts.value = loadedAccounts.map(la => {
+    if (la.type === 'bank') return la;
+    const def = DEFAULT_ACCOUNTS.find(da => da.name === la.name);
+    if (def) {
+      return {
+        ...def,
+        balance: la.balance !== undefined ? la.balance : def.balance,
+        limit: la.limit !== undefined ? la.limit : def.limit,
+        initialDebt: la.initialDebt !== undefined ? la.initialDebt : (def.initialDebt || 0)
+      };
+    }
+    return la;
+  });
+
   budgets.value = getBudgets();
 
   // Make sure each credit card has initialDebt property
@@ -477,10 +499,10 @@ const clearAllData = () => {
       { id: 'a2', name: "國泰Bank", type: "bank", balance: 0 },
       { id: 'a3', name: "中國信託", type: "bank", balance: 0 },
       { id: 'a4', name: "錢包", type: "bank", balance: 0 },
-      { id: 'c1', name: "國泰CUBE", type: "cc", limit: 100000, initialDebt: 0 },
-      { id: 'c2', name: "台新銀行", type: "cc", limit: 100000, initialDebt: 0 },
-      { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0 },
-      { id: 'c4', name: "星展銀行", type: "cc", limit: 100000, initialDebt: 0 }
+      { id: 'c1', name: "國泰CUBE", type: "cc", limit: 150000, initialDebt: 0, billingDay: 21, dueDay: 5, dueNextMonth: true },
+      { id: 'c2', name: "台新銀行", type: "cc", limit: 120000, initialDebt: 0, billingDay: 7, dueDay: 22, dueNextMonth: false },
+      { id: 'c3', name: "聯邦銀行", type: "cc", limit: 100000, initialDebt: 0, billingDay: 9, dueDay: 24, dueNextMonth: false },
+      { id: 'c4', name: "星展銀行", type: "cc", limit: 80000, initialDebt: 0, billingDay: 14, dueDay: 2, dueNextMonth: true }
     ];
     budgets.value = [
       { group: "固定支出", limit: 30000 },
@@ -614,6 +636,8 @@ const netBalance = computed(() => {
 const getCardDebt = (cardName) => {
   const card = accounts.value.find(c => c.name === cardName);
   const initial = card ? (card.initialDebt || 0) : 0;
+  
+  if (!monthA.value || monthA.value.length !== 7) return initial;
   
   // Only sum card expenses for the currently selected Month (monthA)
   const monthlyCardTx = transactions.value
