@@ -14,7 +14,7 @@
           ⚙️ 預算、帳戶與 CSV 匯入
         </button>
         <span class="bg-indigo-900 text-[10px] px-2.5 py-1 rounded-full font-mono">
-          V3.2 易讀對帳版
+          V3.3 精確記帳版
         </span>
       </div>
     </nav>
@@ -119,9 +119,14 @@
 
       <!-- Core Formula Overview (解決數目混亂的痛點) -->
       <div class="bg-slate-900 text-white p-6 rounded-3xl shadow-lg border border-slate-800 space-y-4">
-        <div class="flex items-center gap-2">
-          <span class="text-xl">💰</span>
-          <h3 class="font-bold text-slate-100 text-base">家庭真實資金對帳公式</h3>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">💰</span>
+            <h3 class="font-bold text-slate-100 text-base">
+              家庭真實資金對帳公式 <span class="text-xs text-indigo-300 font-normal">({{ monthA || '未選月份' }} 基準)</span>
+            </h3>
+          </div>
+          <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded">數據已鎖定當月</span>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
           <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
@@ -146,7 +151,7 @@
         </div>
         <p class="text-xs text-slate-400 leading-relaxed">
           💡 <strong>為什麼數字覺得混亂？</strong> 因為刷信用卡是「向未來借錢」，雖然銀行帳戶還有存款，但其實有很多早已預扣給信用卡。
-          上方公式將<strong>「實體存款」扣除「累積卡債」</strong>，算出您<strong>「真正可以花用的資產」</strong>。如果這項淨資產呈現負數，表示存款不夠支付卡費，家庭已經處於透支警報中！
+          上方公式將<strong>「實體存款」扣除「當月已累積卡債」</strong>，算出您<strong>「目前真正可以花用的資產」</strong>。如果這項淨資產呈現負數，表示存款不夠支付卡費，家庭已經處於透支警報中！
         </p>
       </div>
 
@@ -170,30 +175,46 @@
 
       <!-- TAB 1: Monthly Detail & Budget -->
       <div v-if="activeTab === 'monthly'" class="space-y-8">
-        <!-- Top Monthly Metrics Grid -->
+        
+        <!-- Month Selector for Monthly View -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <span class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+            📅 當前正在檢視與記帳的月份：
+            <span class="text-indigo-600 text-base font-black">[{{ monthA || '未選' }}]</span>
+          </span>
+          <select 
+            v-model="monthA" 
+            class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-indigo-700 focus:ring-indigo-500 focus:border-indigo-500 w-full sm:w-48 cursor-pointer"
+          >
+            <option v-for="m in uniqueMonths" :key="m" :value="m">{{ m }}</option>
+            <option v-if="!uniqueMonths.length" value="">尚未建立資料</option>
+          </select>
+        </div>
+
+        <!-- Top Monthly Metrics Grid (資料已鎖定為當月) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80">
-            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">本月總實收收入</p>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">{{ monthA }} 實收收入</p>
             <p class="text-2xl font-bold text-emerald-600 mt-2 font-mono">$ {{ totalIncome.toLocaleString() }}</p>
           </div>
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80">
-            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">本月已登記總支出</p>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">{{ monthA }} 已記支出</p>
             <p class="text-2xl font-bold text-rose-500 mt-2 font-mono">$ {{ totalExpense.toLocaleString() }}</p>
           </div>
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80">
-            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">當月淨結餘 (儲蓄)</p>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">{{ monthA }} 淨結餘 (儲蓄)</p>
             <p class="text-2xl font-bold mt-2 font-mono" :class="netBalance < 0 ? 'text-rose-600' : 'text-emerald-600'">
               $ {{ netBalance.toLocaleString() }}
             </p>
           </div>
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100/80">
-            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">信用卡已消費總卡費</p>
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">{{ monthA }} 累積卡費</p>
             <p class="text-2xl font-bold text-amber-600 mt-2 font-mono">$ {{ totalCCDebt.toLocaleString() }}</p>
           </div>
         </div>
 
         <DiagnosticCard 
-          :transactions="transactions" 
+          :transactions="transactionsForActiveMonth" 
           :accounts="accounts" 
           :budgets="budgets" 
           @open-budget-modal="showBudgetSettings = true"
@@ -204,13 +225,13 @@
             <AccountSummary :accounts="accounts" :transactions="transactions" :active-month="monthA" />
           </div>
           <div>
-            <BudgetProgress :budgets="budgets" :transactions="transactions" />
+            <BudgetProgress :budgets="budgets" :transactions="transactionsForActiveMonth" />
           </div>
         </div>
 
-        <!-- Transaction List table -->
+        <!-- Transaction List table (已鎖定為當月明細) -->
         <TransactionList 
-          :transactions="transactions" 
+          :transactions="transactionsForActiveMonth" 
           @delete="deleteTransaction" 
           @edit="openEditModal"
         />
@@ -571,15 +592,18 @@ const uniqueMonths = computed(() => {
   return [...new Set(months)].sort().reverse();
 });
 
+// Scope main monthly numbers to monthA (Active Month)
 const totalIncome = computed(() => {
+  if (!monthA.value) return 0;
   return transactions.value
-    .filter(t => t.type === '收入')
+    .filter(t => t.type === '收入' && t.date.startsWith(monthA.value))
     .reduce((sum, t) => sum + t.amount, 0);
 });
 
 const totalExpense = computed(() => {
+  if (!monthA.value) return 0;
   return transactions.value
-    .filter(t => t.type === '支出')
+    .filter(t => t.type === '支出' && t.date.startsWith(monthA.value))
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 });
 
@@ -591,9 +615,12 @@ const getCardDebt = (cardName) => {
   const card = accounts.value.find(c => c.name === cardName);
   const initial = card ? (card.initialDebt || 0) : 0;
   
-  return initial + transactions.value
-    .filter(t => t.type === '支出' && t.account === cardName)
+  // Only sum card expenses for the currently selected Month (monthA)
+  const monthlyCardTx = transactions.value
+    .filter(t => t.type === '支出' && t.account === cardName && t.date.startsWith(monthA.value))
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  return initial + monthlyCardTx;
 };
 
 const totalCCDebt = computed(() => {
@@ -606,6 +633,12 @@ const totalBankSavings = computed(() => {
   return accounts.value
     .filter(a => a.type === 'bank')
     .reduce((sum, acc) => sum + acc.balance, 0);
+});
+
+// Reactive Month-scoped list of transactions
+const transactionsForActiveMonth = computed(() => {
+  if (!monthA.value) return [];
+  return transactions.value.filter(t => t.date.startsWith(monthA.value));
 });
 
 // Compare Calculations (A vs B)
