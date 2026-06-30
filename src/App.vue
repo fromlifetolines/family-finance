@@ -597,7 +597,7 @@ const totalIncome = computed(() => {
   if (!monthA.value) return 0;
   return transactions.value
     .filter(t => t.type === '收入' && t.date.startsWith(monthA.value))
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 });
 
 const totalExpense = computed(() => {
@@ -658,7 +658,7 @@ const getMonthlyMetrics = (month) => {
 
   filtered.forEach(t => {
     if (t.type === '收入') {
-      metrics.income += t.amount;
+      metrics.income += Math.abs(t.amount);
     } else {
       const absVal = Math.abs(t.amount);
       metrics.expense += absVal;
