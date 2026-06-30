@@ -632,7 +632,7 @@ const importCSV = () => {
           return null;
         }
 
-        const type = cleanRow['類型'] || '支出';
+        let type = cleanRow['類型'] || '支出';
         const rawDate = cleanRow['日期'] || new Date().toISOString().substring(0, 10);
         
         // Convert "115/6/29" or "2026/6/29" to "2026-06-29"
@@ -648,7 +648,22 @@ const importCSV = () => {
           date = `${y}-${m}-${d}`;
         }
         
-        const amount = parseFloat(cleanRow['金額'] || 0);
+        let amount = parseFloat(cleanRow['金額'] || 0);
+
+        // CRITICAL FIX: Standardize types and signs to prevent CSV inconsistencies from creating "+7,408" expenses
+        if (amount < 0) {
+          // If the CSV explicitly records a negative number, it must be an expense outflow (支出)
+          type = '支出';
+          amount = -Math.abs(amount);
+        } else {
+          // If it is positive, align it with the declared type
+          if (type === '支出') {
+            amount = -Math.abs(amount);
+          } else {
+            type = '收入';
+            amount = Math.abs(amount);
+          }
+        }
         const group = cleanRow['類別群組名稱'] || '未分類';
         const category = cleanRow['類別'] || '其他';
         const account = cleanRow['帳戶'] || '現金';
