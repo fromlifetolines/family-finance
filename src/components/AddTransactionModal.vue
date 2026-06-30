@@ -14,7 +14,7 @@
 
       <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
         <!-- Type Selection -->
-        <div class="flex gap-2" v-if="!isEditMode">
+        <div class="flex gap-2">
           <button 
             type="button" 
             class="flex-1 py-2.5 rounded-xl font-bold transition-all text-center border"
@@ -31,14 +31,6 @@
           >
             💰 收入
           </button>
-        </div>
-        <div v-else class="text-center py-1">
-          <span 
-            class="px-4 py-1.5 rounded-full text-xs font-bold"
-            :class="form.type === '收入' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'"
-          >
-            正在修改項目類型：{{ form.type }}
-          </span>
         </div>
 
         <!-- Date & Title -->
