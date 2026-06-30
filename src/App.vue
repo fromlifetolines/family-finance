@@ -14,7 +14,7 @@
           ⚙️ 預算、帳戶與 CSV 匯入
         </button>
         <span class="bg-indigo-900 text-[10px] px-2.5 py-1 rounded-full font-mono">
-          V3.1 歷史大數據與分期版
+          V3.2 易讀對帳版
         </span>
       </div>
     </nav>
@@ -117,6 +117,39 @@
         </div>
       </div>
 
+      <!-- Core Formula Overview (解決數目混亂的痛點) -->
+      <div class="bg-slate-900 text-white p-6 rounded-3xl shadow-lg border border-slate-800 space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">💰</span>
+          <h3 class="font-bold text-slate-100 text-base">家庭真實資金對帳公式</h3>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">🏦 銀行與錢包活存總計 (手上現有現金)</span>
+            <span class="text-xl font-bold font-mono text-emerald-400">NT$ {{ totalBankSavings.toLocaleString() }}</span>
+          </div>
+          
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">💳 信用卡未結總負債 (您借來的卡債)</span>
+            <span class="text-xl font-bold font-mono text-amber-400">NT$ -{{ totalCCDebt.toLocaleString() }}</span>
+          </div>
+
+          <div class="bg-indigo-650 p-4 rounded-xl border border-indigo-500">
+            <span class="text-[10px] text-indigo-200 font-bold uppercase tracking-wider block">💎 目前家庭真實淨可用資產 (活存減卡債)</span>
+            <span 
+              class="text-xl font-bold font-mono"
+              :class="(totalBankSavings - totalCCDebt) < 0 ? 'text-rose-400' : 'text-white'"
+            >
+              NT$ {{ (totalBankSavings - totalCCDebt).toLocaleString() }}
+            </span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          💡 <strong>為什麼數字覺得混亂？</strong> 因為刷信用卡是「向未來借錢」，雖然銀行帳戶還有存款，但其實有很多早已預扣給信用卡。
+          上方公式將<strong>「實體存款」扣除「累積卡債」</strong>，算出您<strong>「真正可以花用的資產」</strong>。如果這項淨資產呈現負數，表示存款不夠支付卡費，家庭已經處於透支警報中！
+        </p>
+      </div>
+
       <!-- Tab Selection -->
       <div class="flex border-b border-slate-200">
         <button 
@@ -176,7 +209,11 @@
         </div>
 
         <!-- Transaction List table -->
-        <TransactionList :transactions="transactions" @delete="deleteTransaction" />
+        <TransactionList 
+          :transactions="transactions" 
+          @delete="deleteTransaction" 
+          @edit="openEditModal"
+        />
       </div>
 
       <!-- TAB 2: Cross-Month Comparison -->
@@ -303,7 +340,7 @@
     <!-- Floating Action Button for quick add -->
     <div class="fixed bottom-6 right-6 z-40" v-if="activeTab === 'monthly'">
       <button 
-        @click="showAddModal = true"
+        @click="openAddModal"
         class="bg-indigo-600 hover:bg-indigo-700 hover:scale-105 active:scale-95 text-white font-bold w-14 h-14 rounded-full shadow-lg shadow-indigo-200 flex items-center justify-center text-2xl transition-all"
         title="一鍵快速記帳"
       >
@@ -311,13 +348,15 @@
       </button>
     </div>
 
-    <!-- Quick add modal popup -->
+    <!-- Quick add/edit modal popup -->
     <AddTransactionModal 
       :is-open="showAddModal" 
       :accounts="accounts"
-      @close="showAddModal = false" 
+      :editing-transaction="selectedTransactionForEdit"
+      @close="closeAddModal" 
       @add="addTransaction" 
       @add-multiple="addMultipleTransactions"
+      @update="updateTransaction"
     />
   </div>
 </template>
@@ -353,6 +392,7 @@ const activeTab = ref('compare');
 const showAddModal = ref(false);
 const showBudgetSettings = ref(false);
 
+const selectedTransactionForEdit = ref(null);
 const rawCSVInput = ref('');
 
 // Month selector values
@@ -434,6 +474,7 @@ const clearAllData = () => {
   }
 };
 
+// CSV parsing & import logic
 const importCSV = () => {
   const text = rawCSVInput.value.trim();
   if (!text) {
@@ -488,6 +529,7 @@ const importCSV = () => {
         const group = cleanRow['類別群組名稱'] || '未分類';
         const category = cleanRow['類別'] || '其他';
         const account = cleanRow['帳戶'] || '現金';
+        const remark = cleanRow['備註'] || '';
 
         return {
           id: `csv-${Date.now()}-${idx}`,
@@ -497,7 +539,8 @@ const importCSV = () => {
           amount,
           group,
           category,
-          account
+          account,
+          remark
         };
       }).filter(item => item.title !== '未命名' || item.amount !== 0);
 
@@ -611,17 +654,42 @@ const getMonthlyMetrics = (month) => {
 };
 
 // Mutators
+const openAddModal = () => {
+  selectedTransactionForEdit.value = null;
+  showAddModal.value = true;
+};
+
+const openEditModal = (tx) => {
+  selectedTransactionForEdit.value = tx;
+  showAddModal.value = true;
+};
+
+const closeAddModal = () => {
+  selectedTransactionForEdit.value = null;
+  showAddModal.value = false;
+};
+
 const addTransaction = (t) => {
   transactions.value.unshift(t);
   saveToStorage();
-  showAddModal.value = false;
+  closeAddModal();
   renderAllCharts();
 };
 
 const addMultipleTransactions = (list) => {
   transactions.value = [...list, ...transactions.value];
   saveToStorage();
-  showAddModal.value = false;
+  closeAddModal();
+  renderAllCharts();
+};
+
+const updateTransaction = (updatedTx) => {
+  const idx = transactions.value.findIndex(t => t.id === updatedTx.id);
+  if (idx !== -1) {
+    transactions.value[idx] = updatedTx;
+    saveToStorage();
+  }
+  closeAddModal();
   renderAllCharts();
 };
 

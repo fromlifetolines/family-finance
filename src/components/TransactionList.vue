@@ -35,12 +35,13 @@
             <th class="p-4">金額</th>
             <th class="p-4">類別</th>
             <th class="p-4">支付管道</th>
+            <th class="p-4">備註/補充說明</th>
             <th class="p-4 text-right">操作</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-if="filteredTransactions.length === 0">
-            <td colspan="7" class="p-8 text-center text-slate-400">
+            <td colspan="8" class="p-8 text-center text-slate-400">
               無相符的交易紀錄
             </td>
           </tr>
@@ -71,7 +72,17 @@
               </span>
             </td>
             <td class="p-4 text-slate-500 font-medium text-xs">{{ t.account }}</td>
-            <td class="p-4 text-right">
+            <td class="p-4 text-slate-500 text-xs max-w-xs truncate" :title="t.remark">
+              {{ t.remark || '—' }}
+            </td>
+            <td class="p-4 text-right flex justify-end gap-1">
+              <button 
+                @click="$emit('edit', t)"
+                class="text-indigo-600 hover:text-indigo-900 p-1.5 rounded-lg hover:bg-indigo-50 transition"
+                title="修改這筆交易"
+              >
+                ✏️
+              </button>
               <button 
                 @click="$emit('delete', t.id)"
                 class="text-slate-300 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition"
@@ -97,7 +108,7 @@ const props = defineProps({
   }
 });
 
-defineEmits(['delete']);
+defineEmits(['delete', 'edit']);
 
 const filterType = ref('all');
 const filterGroup = ref('all');
