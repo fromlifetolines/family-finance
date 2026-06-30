@@ -554,6 +554,20 @@ const importCSV = () => {
           cleanRow[normalizeKey(k)] = v ? String(v).replace(/['"]+/g, '').trim() : '';
         });
 
+        const title = cleanRow['標題'] || '未命名';
+        // Skip card credit limit setup or initial adjustment rows exported by app
+        if (
+          title.includes('額度') || 
+          title.includes('信用') || 
+          title.includes('授信') || 
+          title.includes('期初') || 
+          title.includes('開戶') || 
+          title.includes('調整') || 
+          title.includes('原始金額')
+        ) {
+          return null;
+        }
+
         const type = cleanRow['類型'] || '支出';
         const rawDate = cleanRow['日期'] || new Date().toISOString().substring(0, 10);
         
@@ -567,7 +581,6 @@ const importCSV = () => {
           date = `${y}-${m}-${d}`;
         }
         
-        const title = cleanRow['標題'] || '未命名';
         const amount = parseFloat(cleanRow['金額'] || 0);
         const group = cleanRow['類別群組名稱'] || '未分類';
         const category = cleanRow['類別'] || '其他';
@@ -585,7 +598,7 @@ const importCSV = () => {
           account,
           remark
         };
-      }).filter(item => item.title !== '未命名' || item.amount !== 0);
+      }).filter(item => item !== null && (item.title !== '未命名' || item.amount !== 0));
 
       if (parsed.length > 0) {
         transactions.value = parsed;
