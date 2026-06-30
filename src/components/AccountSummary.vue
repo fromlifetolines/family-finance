@@ -147,47 +147,16 @@ const creditCards = computed(() => props.accounts.filter(a => a.type === 'cc'));
 // Double entry ledger formula to calculate bank balances dynamically
 const getBankAccountBalance = (accName) => {
   const acc = bankAccounts.value.find(a => a.name === accName);
-  const initial = acc ? (acc.balance || 0) : 0;
-
-  // Filter transactions up to the end of the selected month
-  const txs = props.transactions.filter(t => {
-    if (t.account !== accName) return false;
-    if (!props.activeMonth) return true;
-    const tMonth = t.date.substring(0, 7);
-    return tMonth <= props.activeMonth;
-  });
-
-  const income = txs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const expenses = txs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const transfers = txs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
-
-  return initial + income - expenses + transfers;
+  return acc ? (acc.balance || 0) : 0;
 };
 
 const totalBankSavings = computed(() => {
   return bankAccounts.value.reduce((sum, acc) => sum + getBankAccountBalance(acc.name), 0);
 });
 
-// Double entry ledger formula to calculate credit card debt dynamically
 const getCardDebt = (cardName) => {
   const card = creditCards.value.find(c => c.name === cardName);
-  const initial = card ? (card.initialDebt || 0) : 0;
-  
-  if (!props.activeMonth) return initial;
-
-  // Filter transactions up to the end of the selected month
-  const txs = props.transactions.filter(t => {
-    if (t.account !== cardName) return false;
-    const tMonth = t.date.substring(0, 7);
-    return tMonth <= props.activeMonth;
-  });
-
-  const expenses = txs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const income = txs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const transfers = txs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
-
-  // CC Debt = initial + expenses - payments(income) - payments(transfers in)
-  return initial + expenses - income - transfers;
+  return card ? (card.initialDebt || 0) : 0;
 };
 
 const totalCCDebt = computed(() => {

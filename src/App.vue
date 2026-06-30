@@ -648,42 +648,12 @@ const netBalance = computed(() => {
 
 const getBankAccountBalance = (accName) => {
   const acc = accounts.value.find(a => a.name === accName);
-  const initial = acc ? (acc.balance || 0) : 0;
-  
-  if (!monthA.value) return initial;
-  
-  // Filter transactions up to the end of the active month
-  const txs = transactions.value.filter(t => {
-    if (t.account !== accName) return false;
-    const tMonth = t.date.substring(0, 7);
-    return tMonth <= monthA.value;
-  });
-
-  const income = txs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const expenses = txs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const transfers = txs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
-
-  return initial + income - expenses + transfers;
+  return acc ? (acc.balance || 0) : 0;
 };
 
 const getCardDebt = (cardName) => {
   const card = accounts.value.find(c => c.name === cardName);
-  const initial = card ? (card.initialDebt || 0) : 0;
-  
-  if (!monthA.value || monthA.value.length !== 7) return initial;
-  
-  // Filter transactions up to the end of the active month
-  const txs = transactions.value.filter(t => {
-    if (t.account !== cardName) return false;
-    const tMonth = t.date.substring(0, 7);
-    return tMonth <= monthA.value;
-  });
-
-  const expenses = txs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const income = txs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const transfers = txs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
-
-  return initial + expenses - income - transfers;
+  return card ? (card.initialDebt || 0) : 0;
 };
 
 const totalCCDebt = computed(() => {
