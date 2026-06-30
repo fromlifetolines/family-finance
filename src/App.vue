@@ -571,11 +571,14 @@ const importCSV = () => {
         const type = cleanRow['類型'] || '支出';
         const rawDate = cleanRow['日期'] || new Date().toISOString().substring(0, 10);
         
-        // Convert "2026/6/29" or "2026/06/29" to "2026-06-29"
+        // Convert "115/6/29" or "2026/6/29" to "2026-06-29"
         let date = rawDate.split(' ')[0].replace(/\//g, '-');
         const parts = date.split('-');
         if (parts.length === 3) {
-          const y = parts[0];
+          let y = parseInt(parts[0]);
+          if (y < 1000) {
+            y = y + 1911;
+          }
           const m = parts[1].padStart(2, '0');
           const d = parts[2].padStart(2, '0');
           date = `${y}-${m}-${d}`;
