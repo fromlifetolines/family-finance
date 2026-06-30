@@ -19,7 +19,7 @@
           <div>
             <p class="font-medium text-slate-700">{{ acc.name }}</p>
             <p class="text-[9px] text-slate-400">
-              期初: NT$ {{ (acc.balance || 0).toLocaleString() }} ｜ 當月變動
+              活期存款
             </p>
           </div>
           <span class="font-mono font-bold text-emerald-600">
@@ -36,7 +36,7 @@
           💳 信用卡應付帳單 & 繳款日
         </h3>
         <span class="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-md font-bold">
-          總卡費: NT$ {{ totalCCDebt.toLocaleString() }}
+          總負債: NT$ -{{ totalCCDebt.toLocaleString() }}
         </span>
       </div>
       <div class="space-y-4">
@@ -53,13 +53,11 @@
               </span>
             </div>
             <div class="text-right">
-              <span class="font-mono text-sm font-bold text-amber-600 block">
-                $ {{ getCardDebt(card.name).toLocaleString() }}
+              <!-- Always display as negative to match phone bookkeeping apps -->
+              <span class="font-mono text-sm font-bold text-rose-600 block">
+                -NT$ {{ getCardDebt(card.name).toLocaleString() }}
               </span>
-              <span class="text-[9px] text-slate-400 font-medium block">當前未結帳款</span>
-              <span class="text-[8px] text-slate-500 block" v-if="card.initialDebt">
-                (含期初 NT$ {{ card.initialDebt.toLocaleString() }})
-              </span>
+              <span class="text-[9px] text-slate-400 font-medium block">當前卡債餘額</span>
             </div>
           </div>
 
@@ -144,7 +142,6 @@ const props = defineProps({
 const bankAccounts = computed(() => props.accounts.filter(a => a.type === 'bank'));
 const creditCards = computed(() => props.accounts.filter(a => a.type === 'cc'));
 
-// Double entry ledger formula to calculate bank balances dynamically
 const getBankAccountBalance = (accName) => {
   const acc = bankAccounts.value.find(a => a.name === accName);
   return acc ? (acc.balance || 0) : 0;
@@ -154,9 +151,10 @@ const totalBankSavings = computed(() => {
   return bankAccounts.value.reduce((sum, acc) => sum + getBankAccountBalance(acc.name), 0);
 });
 
+// Force positive value representation of card debt for calculations
 const getCardDebt = (cardName) => {
   const card = creditCards.value.find(c => c.name === cardName);
-  return card ? (card.initialDebt || 0) : 0;
+  return card ? Math.abs(card.initialDebt || 0) : 0;
 };
 
 const totalCCDebt = computed(() => {
@@ -199,10 +197,11 @@ const getBillingInfo = (card) => {
   };
 
   // Find transactions falling strictly inside statement period: [startDate, billDate]
+  // CRITICAL FIX: EXCLUDE '轉帳' (transfers/repayments) from bill statement, only count consumer spending and refunds
   const statementTxs = props.transactions
     .filter(t => {
       if (t.account !== card.name) return false;
-      if (t.type !== '支出' && t.type !== '轉帳' && t.type !== '收入') return false;
+      if (t.type !== '支出' && t.type !== '收入') return false;
       
       const tDate = new Date(t.date);
       tDate.setHours(0,0,0,0);
@@ -216,7 +215,7 @@ const getBillingInfo = (card) => {
       return tDate >= start && tDate <= end;
     });
 
-  // Calculate bill statement amount: Spending (adds) minus Payments/Refunds (reduces)
+  // Calculate bill statement amount: Spending (adds) minus Refunds (reduces)
   const statementAmount = statementTxs.reduce((sum, t) => {
     if (t.type === '支出') {
       return sum + Math.abs(t.amount);

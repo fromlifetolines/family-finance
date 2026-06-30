@@ -656,7 +656,7 @@ const getBankAccountBalance = (accName) => {
 
 const getCardDebt = (cardName) => {
   const card = accounts.value.find(c => c.name === cardName);
-  return card ? (card.initialDebt || 0) : 0;
+  return card ? Math.abs(card.initialDebt || 0) : 0;
 };
 
 const totalCCDebt = computed(() => {
