@@ -41,7 +41,7 @@
         <div 
           v-for="card in creditCards" 
           :key="card.id"
-          class="p-4 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all border border-slate-100/50 space-y-2"
+          class="p-4 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all border border-slate-100/50 space-y-3"
         >
           <div class="flex justify-between items-start">
             <div>
@@ -54,22 +54,25 @@
               <span class="font-mono text-sm font-bold text-amber-600 block">
                 $ {{ getCardDebt(card.name).toLocaleString() }}
               </span>
-              <span class="text-[9px] text-slate-400 font-medium">總累積未結</span>
+              <span class="text-[9px] text-slate-400 font-medium block">當前未結餘額</span>
+              <span class="text-[8px] text-slate-500 block" v-if="card.initialDebt">
+                (含期初 NT$ {{ card.initialDebt.toLocaleString() }})
+              </span>
             </div>
           </div>
 
           <!-- Billing Info break down -->
-          <div class="grid grid-cols-2 gap-2 text-xs bg-white/60 p-2 rounded-lg border border-slate-200/30">
+          <div class="grid grid-cols-2 gap-2 text-xs bg-white/60 p-2.5 rounded-lg border border-slate-200/30">
             <div class="space-y-0.5">
-              <span class="text-[9px] text-slate-400 uppercase tracking-wider block">本期應繳帳單</span>
-              <span class="font-bold text-slate-700 font-mono">
+              <span class="text-[9px] text-slate-400 uppercase tracking-wider block">本期帳單應繳</span>
+              <span class="font-bold text-indigo-700 font-mono text-sm block">
                 $ {{ getBillingInfo(card).statementAmount.toLocaleString() }}
               </span>
               <span class="text-[8px] text-slate-400 block">
                 ({{ getBillingInfo(card).period }})
               </span>
             </div>
-            <div class="space-y-0.5 text-right border-l border-slate-150 pl-2">
+            <div class="space-y-0.5 text-right border-l border-slate-200 pl-2">
               <span class="text-[9px] text-slate-400 uppercase tracking-wider block">繳款截止日</span>
               <span class="font-bold text-rose-500 font-mono block">
                 {{ getBillingInfo(card).dueDate }}
@@ -77,6 +80,25 @@
               <span class="text-[9px] text-slate-500 block">
                 未出帳: $ {{ getBillingInfo(card).unbilledAmount.toLocaleString() }}
               </span>
+            </div>
+          </div>
+
+          <!-- Card statement tx detail (Collapse) -->
+          <div class="text-[10px] bg-slate-100/50 p-2 rounded-lg space-y-1">
+            <div class="flex justify-between items-center text-slate-500 font-bold border-b border-slate-200 pb-1 mb-1">
+              <span>📋 本期帳單計費明細 ({{ getBillingInfo(card).txCount }} 筆)</span>
+              <span class="text-[9px]">總計 $ {{ getBillingInfo(card).statementAmount.toLocaleString() }}</span>
+            </div>
+            <div class="max-h-24 overflow-y-auto space-y-0.5 font-mono pr-1">
+              <div v-for="t in getBillingInfo(card).txs" :key="t.id" class="flex justify-between text-slate-600 text-[9px]">
+                <span class="truncate w-28">{{ t.date.substring(5) }} {{ t.title }}</span>
+                <span :class="t.type === '支出' ? 'text-rose-500' : 'text-emerald-600'">
+                  {{ t.type === '支出' ? '-' : '+' }}{{ Math.abs(t.amount) }}
+                </span>
+              </div>
+              <div v-if="!getBillingInfo(card).txs.length" class="text-center text-slate-400 text-[9px] py-1">
+                此期間無刷卡交易
+              </div>
             </div>
           </div>
 
@@ -130,11 +152,17 @@ const getCardDebt = (cardName) => {
   
   if (!props.activeMonth) return initial;
 
-  const currentMonthTx = props.transactions
+  // Expenses on this card (adds to card debt)
+  const expenses = props.transactions
     .filter(t => t.type === '支出' && t.account === cardName && t.date.startsWith(props.activeMonth))
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  // Payments / Transfers / Refunds into this card (reduces card debt)
+  const payments = props.transactions
+    .filter(t => (t.type === '轉帳' || t.type === '收入') && t.account === cardName && t.date.startsWith(props.activeMonth))
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     
-  return initial + currentMonthTx;
+  return initial + expenses - payments;
 };
 
 const totalCCDebt = computed(() => {
@@ -142,7 +170,7 @@ const totalCCDebt = computed(() => {
 });
 
 const getBillingInfo = (card) => {
-  const fallback = { period: '—', dueDate: '—', statementAmount: 0, unbilledAmount: 0 };
+  const fallback = { period: '—', dueDate: '—', statementAmount: 0, unbilledAmount: 0, txs: [], txCount: 0 };
   if (!card.billingDay) return fallback;
 
   // Use the active month (e.g. "2026-06") or default to today's month
@@ -177,10 +205,13 @@ const getBillingInfo = (card) => {
     return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  // Sum transactions falling strictly inside: [startDate, billDate]
-  const statementTxSum = props.transactions
+  // Find transactions falling strictly inside: [startDate, billDate]
+  const statementTxs = props.transactions
     .filter(t => {
-      if (t.type !== '支出' || t.account !== card.name) return false;
+      if (t.account !== card.name) return false;
+      // Include both spending and payments in the statement cycle
+      if (t.type !== '支出' && t.type !== '轉帳' && t.type !== '收入') return false;
+      
       const tDate = new Date(t.date);
       tDate.setHours(0,0,0,0);
       
@@ -191,8 +222,17 @@ const getBillingInfo = (card) => {
       end.setHours(23,59,59,999);
       
       return tDate >= start && tDate <= end;
-    })
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    });
+
+  // Calculate bill statement amount: Spending (adds) minus Payments/Refunds (reduces)
+  const statementAmount = statementTxs.reduce((sum, t) => {
+    if (t.type === '支出') {
+      return sum + Math.abs(t.amount);
+    } else {
+      // payment or transfer into CC reduces bill amount
+      return sum - Math.abs(t.amount);
+    }
+  }, 0);
 
   // Sum transactions made strictly AFTER billDate
   const unbilledTxSum = props.transactions
@@ -211,8 +251,10 @@ const getBillingInfo = (card) => {
   return {
     period: `${formatDateShort(startDate)} ~ ${formatDateShort(billDate)}`,
     dueDate: formatDateFull(dueDate),
-    statementAmount: statementTxSum, // Only sum statement transactions, exclude initial debt
-    unbilledAmount: unbilledTxSum
+    statementAmount: statementAmount, 
+    unbilledAmount: unbilledTxSum,
+    txs: statementTxs,
+    txCount: statementTxs.length
   };
 };
 </script>
