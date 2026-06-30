@@ -730,12 +730,28 @@ const netBalance = computed(() => {
 
 const getBankAccountBalance = (accName) => {
   const acc = accounts.value.find(a => a.name === accName);
-  return acc ? (acc.balance || 0) : 0;
+  const initial = acc ? (acc.balance || 0) : 0;
+  
+  // Sum manual (non-CSV) transactions added after settings setup
+  const manualTxs = transactions.value.filter(t => t.account === accName && !t.id.startsWith('csv-'));
+  const income = manualTxs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const expenses = manualTxs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const transfers = manualTxs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
+
+  return initial + income - expenses + transfers;
 };
 
 const getCardDebt = (cardName) => {
   const card = accounts.value.find(c => c.name === cardName);
-  return card ? Math.abs(card.initialDebt || 0) : 0;
+  const initial = card ? Math.abs(card.initialDebt || 0) : 0;
+  
+  // Sum manual (non-CSV) transactions added after settings setup
+  const manualTxs = transactions.value.filter(t => t.account === cardName && !t.id.startsWith('csv-'));
+  const expenses = manualTxs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const income = manualTxs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const transfers = manualTxs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
+
+  return initial + expenses - income - transfers;
 };
 
 const totalCCDebt = computed(() => {

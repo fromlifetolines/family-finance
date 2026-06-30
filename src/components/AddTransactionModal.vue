@@ -365,6 +365,7 @@ const handleSubmit = () => {
   if (isEditMode.value) {
     emit('update', {
       ...props.editingTransaction,
+      type: form.value.type,
       date: form.value.date,
       title: form.value.title,
       amount: baseAmount,
