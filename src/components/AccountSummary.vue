@@ -18,10 +18,12 @@
         >
           <div>
             <p class="font-medium text-slate-700">{{ acc.name }}</p>
-            <p class="text-xs text-slate-400">活期存款</p>
+            <p class="text-[9px] text-slate-400">
+              期初: NT$ {{ (acc.balance || 0).toLocaleString() }} ｜ 當月變動
+            </p>
           </div>
           <span class="font-mono font-bold text-emerald-600">
-            $ {{ acc.balance.toLocaleString() }}
+            $ {{ getBankAccountBalance(acc.name).toLocaleString() }}
           </span>
         </div>
       </div>
@@ -54,7 +56,7 @@
               <span class="font-mono text-sm font-bold text-amber-600 block">
                 $ {{ getCardDebt(card.name).toLocaleString() }}
               </span>
-              <span class="text-[9px] text-slate-400 font-medium block">當前未結餘額</span>
+              <span class="text-[9px] text-slate-400 font-medium block">當前未結帳款</span>
               <span class="text-[8px] text-slate-500 block" v-if="card.initialDebt">
                 (含期初 NT$ {{ card.initialDebt.toLocaleString() }})
               </span>
@@ -142,27 +144,50 @@ const props = defineProps({
 const bankAccounts = computed(() => props.accounts.filter(a => a.type === 'bank'));
 const creditCards = computed(() => props.accounts.filter(a => a.type === 'cc'));
 
+// Double entry ledger formula to calculate bank balances dynamically
+const getBankAccountBalance = (accName) => {
+  const acc = bankAccounts.value.find(a => a.name === accName);
+  const initial = acc ? (acc.balance || 0) : 0;
+
+  // Filter transactions up to the end of the selected month
+  const txs = props.transactions.filter(t => {
+    if (t.account !== accName) return false;
+    if (!props.activeMonth) return true;
+    const tMonth = t.date.substring(0, 7);
+    return tMonth <= props.activeMonth;
+  });
+
+  const income = txs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const expenses = txs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const transfers = txs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
+
+  return initial + income - expenses + transfers;
+};
+
 const totalBankSavings = computed(() => {
-  return bankAccounts.value.reduce((sum, acc) => sum + acc.balance, 0);
+  return bankAccounts.value.reduce((sum, acc) => sum + getBankAccountBalance(acc.name), 0);
 });
 
+// Double entry ledger formula to calculate credit card debt dynamically
 const getCardDebt = (cardName) => {
   const card = creditCards.value.find(c => c.name === cardName);
   const initial = card ? (card.initialDebt || 0) : 0;
   
   if (!props.activeMonth) return initial;
 
-  // Expenses on this card (adds to card debt)
-  const expenses = props.transactions
-    .filter(t => t.type === '支出' && t.account === cardName && t.date.startsWith(props.activeMonth))
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  // Filter transactions up to the end of the selected month
+  const txs = props.transactions.filter(t => {
+    if (t.account !== cardName) return false;
+    const tMonth = t.date.substring(0, 7);
+    return tMonth <= props.activeMonth;
+  });
 
-  // Payments / Transfers / Refunds into this card (reduces card debt)
-  const payments = props.transactions
-    .filter(t => (t.type === '轉帳' || t.type === '收入') && t.account === cardName && t.date.startsWith(props.activeMonth))
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    
-  return initial + expenses - payments;
+  const expenses = txs.filter(t => t.type === '支出').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const income = txs.filter(t => t.type === '收入').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const transfers = txs.filter(t => t.type === '轉帳').reduce((sum, t) => sum + t.amount, 0);
+
+  // CC Debt = initial + expenses - payments(income) - payments(transfers in)
+  return initial + expenses - income - transfers;
 };
 
 const totalCCDebt = computed(() => {
@@ -173,7 +198,6 @@ const getBillingInfo = (card) => {
   const fallback = { period: '—', dueDate: '—', statementAmount: 0, unbilledAmount: 0, txs: [], txCount: 0 };
   if (!card.billingDay) return fallback;
 
-  // Use the active month (e.g. "2026-06") or default to today's month
   const targetMonthStr = props.activeMonth || new Date().toISOString().substring(0, 7);
   const [yearStr, monthStr] = targetMonthStr.split('-');
   const year = parseInt(yearStr || new Date().getFullYear());
@@ -205,11 +229,10 @@ const getBillingInfo = (card) => {
     return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  // Find transactions falling strictly inside: [startDate, billDate]
+  // Find transactions falling strictly inside statement period: [startDate, billDate]
   const statementTxs = props.transactions
     .filter(t => {
       if (t.account !== card.name) return false;
-      // Include both spending and payments in the statement cycle
       if (t.type !== '支出' && t.type !== '轉帳' && t.type !== '收入') return false;
       
       const tDate = new Date(t.date);
@@ -229,7 +252,6 @@ const getBillingInfo = (card) => {
     if (t.type === '支出') {
       return sum + Math.abs(t.amount);
     } else {
-      // payment or transfer into CC reduces bill amount
       return sum - Math.abs(t.amount);
     }
   }, 0);
